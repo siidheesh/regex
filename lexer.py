@@ -1,7 +1,7 @@
 
 from pprint import pprint
-# r"([^ab-c.\u0ACD1H3\d\n]\uACD1.){1}*+?*abcd"
-test = r"[hc\xFFv]?at|1[^ab-c.\u0ACD1H3\d\n]\uACD1."
+
+test = ""
 i = -1
 
 
@@ -132,42 +132,12 @@ def expr():
 '''
 ENCLOSED_EXPR -> EXTENDED_CHAR || CHAR_CLASS || ε
 
-
 ENCLOSED_EXPR -> EXTENDED_CHAR ENCLOSED_EXPR' || CHAR_CLASS ENCLOSED_EXPR' 
 ENCLOSED_EXPR' -> ENCLOSED_EXPR ENCLOSED_EXPR' || ε
 '''
 
-'''
-def enclosed_expr11():
-    if not peek():
-        return ("ENCLOSED_EXPR", None)
-    res = char_class()
-    if res:
-        return ("ENCLOSED_EXPR", res)
-    res = extended_char()
-    if res:
-        return ("ENCLOSED_EXPR", res)
-    raise SyntaxError()
-'''
-
 
 def enclosed_expr():
-    '''res = ()
-    while True:
-        r = extended_char()
-        if r:
-            res += (r,)
-            break  # continue
-        r = char_class()
-        if r:
-            res += (r,)
-            break  # continue
-        else:
-            break
-
-    if res != ():
-        return res
-    return None'''
     res = extended_char()
     if res:
         return res

@@ -162,16 +162,34 @@ def char_class_expr(kids):
     for i in ranges:
         if i <= 0 or i >= len(kids) - 1:
             raise SyntaxError("invalid range in char class")
-        start = kids[i-1]
-        end = kids[i+1]
+        start = kids[i-1][1]
+        end = kids[i+1][1]
         items = items[:i] + (extended_char_range(start, end),) + items[i:]
 
-    return items
+    return tuple(filter(lambda el: el is not None, items))
 
 
 def extended_char_range(start, end):
-    # TODO
-    pass
+    def parse_char(kid):
+        if kid is None or type(kid) is not tuple:
+            raise SyntaxError("invalid char in char range")
+        k, v = kid
+        if k == "CHAR":
+            return v
+        elif k == "ASCII_CP" or k == "UNICODE_CP":
+            return chr(int(v, 16))
+        else:
+            raise SyntaxError("invalid char in char range")
+    start = parse_char(start)
+    end = parse_char(end)
+
+    if end < start:
+        raise SyntaxError("invalid bounds in char range")
+
+    def extended_char_range_helper(x):
+        return start <= x and x <= end
+
+    return extended_char_range_helper
 
 
 def extended_char(kid):
@@ -221,7 +239,10 @@ def extended_char(kid):
 if __name__ == "__main__":
     #tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
     regex = input("Enter pattern: ")
-    fa = parse(lexer.regex(regex))
+    regex = regex if regex is not "" else r"d+[hc2-47-9g-\x77]+(a|t)*(hello)*|1"
+    tree = lexer.regex(regex)
+    pprint(tree)
+    fa = parse(tree)
     while True:
-        test = input("input: ")
+        test = input("test: ")
         print("MATCHED ✔️" if fa.process(test, debug=True) else "NOPE ❌")

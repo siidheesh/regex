@@ -73,6 +73,13 @@ class NFA:
     def accepts(self):
         return len(self.state & self.accept) > 0
 
+    # Create a shallow clone
+    def clone(self):
+        res = NFA()
+        res.transitions = self.transitions.copy()
+        res.predicates = self.predicates.copy()
+        return res
+
     # union op
     def __or__(self, rhs):
         res = NFA()
@@ -109,9 +116,6 @@ class NFA:
         def mark_rhs(state):
             return str(state)+'b'
 
-        # clone self
-        # lhs = self + NFA()
-
         for hs, mark in ((self, mark_lhs), (rhs, mark_rhs)):
             # add transitions
             for idx in hs.transitions:
@@ -147,12 +151,32 @@ class NFA:
         return res
 
     # match op (match >=1 times)
+    # the use of predicates requires embedding the NFA in another one, and linking the start/end states within
     def matchify(self):
-        clone = self | NFA()
-        for idx in clone.transitions:
-            if NFA.END in clone.transitions[idx]:
-                # link every state, that transits to END, to START
-                clone.add_transition(*idx, NFA.START)
+        clone = self.clone()
+
+        def mark(state):
+            return str(state)+'m'
+
+        # add transitions
+        for idx in self.transitions:
+            from_state, input = idx
+            for to_state in self.transitions[idx]:
+                clone.add_transition(mark(from_state), input, mark(to_state))
+
+        # add predicates
+        for from_state in self.predicates:
+            for predicate, to_state in self.predicates[from_state]:
+                clone.add_transition(
+                    mark(from_state), predicate, mark(to_state))
+
+        # connect start and end states
+        clone.add_transition(NFA.START, None, mark(NFA.START))
+        clone.add_transition(mark(NFA.END), None, NFA.END)
+
+        # connect inner end state to inner start state
+        clone.add_transition(mark(NFA.END), None, mark(NFA.START))
+
         return clone
 
     # Kleene op (match >=0 times)
@@ -176,7 +200,10 @@ class NFA:
         for char in input:
             self.transition(char)
             if debug:
-                print("proc:", char, self.state, self.accepts())
+                print("proc:", char, self.accepts(), self.state)
+            if not len(self.state):
+                # no active branches left
+                break
         return self.accepts()
 
 
