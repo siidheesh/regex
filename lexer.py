@@ -298,14 +298,6 @@ def char_class_expr():
     # return ("CHAR_CLASS_EXPR", res)
 
 
-pprint(regex(r"[hc\xFFv1]?(a|t)|136[^ab-c.\u111111]"))
-# pprint(regex(r"[hc]?(a|t)"))
-'''
-pprint((2, quantified_expr()))
-pprint((3, quantified_expr()))
-pprint((4, quantified_expr()))
-pprint((5, quantified_expr()))
-pprint((6, quantified_expr()))
-pprint((7, quantified_expr()))
-pprint((8, quantified_expr()))
-'''
+if __name__ == "__main__":
+    pprint(regex(r"[hc\xFFv1]?(a|t)|136[^ab-c.\u111111]"))
+    # pprint(regex(r"[hc]?(a|t)"))

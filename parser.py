@@ -1,7 +1,8 @@
-
-
 from pprint import pprint
+from nfa import NFA
 import lexer
+
+# FIXME: fix this
 
 
 def parse(tree):
@@ -13,100 +14,45 @@ def union_expr(kids):
     if kids is None or type(kids) is not tuple:
         return None
 
-    items = ()
-
+    res = None
     for kid in kids:
         k, v = kid
         if k != "CONCAT_EXPR":
             raise SyntaxError("expected CONCAT_EXPR")
-        res = concat_expr(v)
-        if res is not None:
-            items += (res,)
+        r = concat_expr(v)
+        if r is not None:
+            res = r if res is None else res | r
 
-    return items
-
-    '''def union_expr_helper(x):
-        # stepped = filter(lambda el: el != False, map(
-        #    lambda step: step(x), items))
-        # return stepped
-        res = ()
-        for test in items:
-            r = test(x)
-            if r is not None and r:
-                res += (r,)
-        return res
-
-    return union_expr_helper'''
-
-
-'''
-    # given string x and starting index start_i, check if match
-    def helper(x, start_i):
-        i = start_i
-        res = ()
-        for count, test in items:
-            if test(x, i):
-                res += (i+count,)  # matched from i to i+count
-        return res
-
-    return helper'''
+    return res
 
 
 def concat_expr(kids):
     if kids is None or type(kids) is not tuple:
         return None
+
+    res = None
     for kid in kids:
         if kid is None or type(kid) is not tuple:
             raise SyntaxError("invalid expr")
         k, v = kid
-        res = None
         if k == "EXPR":
-            res = expr(v)
-            if res is not None:
-                pass
-                # current = step_generator(
-                #    res, current) if current is not None else res
+            r = expr(v)
+            if r is not None:
+                res = r if res is None else res & r
         elif k == "KLEENE":
-            res = expr(v)
-            if res is not None:
-                def kleene_helper(x):
-                    pass
+            r = kleene(v)
+            if r is not None:
+                res = r if res is None else res & r
+        elif k == "MATCH":
+            r = matchop(v)
+            if r is not None:
+                res = r if res is None else res & r
+        elif k == "OPT":
+            r = opt(v)
+            if r is not None:
+                res = r if res is None else res & r
 
-    def fa_helper():
-
-        pass
-
-    return fa_helper
-
-
-'''
-    def step_generator(test, next):
-        def step(x):
-            if test(x):
-                return next
-            return False
-        return step
-
-    current = None
-'''
-# return current
-
-
-'''
-    # given string x and starting index start_i, check if match
-    def helper(x, start_i):
-        i = start_i
-        for count, test in items:
-            if i + count >= len(x):
-                return False  # invalid case
-            if test(x[i:i+count]):
-                i += count
-            else:
-                return False
-        return True
-
-    return total_count, helper
-'''
+    return res
 
 
 def kleene(kid):
@@ -114,28 +60,52 @@ def kleene(kid):
         return None
     k, v = kid
     if k != "EXPR":
-        raise SyntaxError("expected EXPR in kleene expr")
-
+        raise SyntaxError("expected EXPR in kleene")
     res = expr(v)
+    if res != None:
+        return res.kleenefy()
+    return None
 
-    def kleene_helper(x):
-        next = res(x)
 
-        pass
+def matchop(kid):
+    if kid is None or type(kid) is not tuple:
+        return None
+    k, v = kid
+    if k != "EXPR":
+        raise SyntaxError("expected EXPR in kleene")
+    res = expr(v)
+    if res != None:
+        return res.matchify()
+    return None
 
-    # 1) vacuous +ve match, 2) try to match following input
-    return (True, kleene_helper)
+
+def opt(kid):
+    if kid is None or type(kid) is not tuple:
+        return None
+    k, v = kid
+    if k != "EXPR":
+        raise SyntaxError("expected EXPR in opt")
+    res = expr(v)
+    if res != None:
+        return res.optify()
+    return None
 
 
 def expr(kid):
     if kid is None or type(kid) is not tuple:
         return None
     k, v = kid
+
+    def make_nfa(pred):
+        a = NFA()
+        a.add_transition(NFA.START, pred, NFA.END)
+        return a
+
     res = None
     if k == "EXTENDED_CHAR":
-        res = (extended_char(v),)
+        res = make_nfa(extended_char(v))
     elif k == "CHAR_CLASS":
-        res = (char_class(v),)
+        res = make_nfa(char_class(v))
     elif k == "UNION_EXPR":
         res = union_expr(v)
     return res
@@ -152,7 +122,7 @@ def char_class(kid):
     elif kid[0] != "CHAR_CLASS_INNER":
         raise SyntaxError("invalid char class type")
 
-    print("emitting char_class, is_neg:", is_neg)
+    #print("emitting char_class, is_neg:", is_neg)
 
     # get tuple of lambdas to test against
     lambdas = char_class_expr(kid[1])
@@ -200,6 +170,7 @@ def char_class_expr(kids):
 
 
 def extended_char_range(start, end):
+    # TODO
     pass
 
 
@@ -207,7 +178,7 @@ def extended_char(kid):
     if kid is None or type(kid) is not tuple:
         return None
     k, v = kid
-    print("emitting extended_char", k, v)
+    #print("emitting extended_char", k, v)
     if k == "CHAR":
         return lambda x: x == v
     elif k == "WILDCARD":
@@ -247,24 +218,10 @@ def extended_char(kid):
         raise SyntaxError("invalid extended char")
 
 
-'''
-a = ('CHAR_CLASS_EXPR',
-     (('EXTENDED_CHAR', ('CHAR', 'a')),
-      ('EXTENDED_CHAR', ('CHAR', 'b')),
-      ('RANGE', None),
-      ('EXTENDED_CHAR', ('CHAR', 'c')),
-      ('EXTENDED_CHAR', ('WILDCARD', None)),
-      ('EXTENDED_CHAR', ('UNICODE_CP', '11111')),
-      ('EXTENDED_CHAR', ('CHAR', '1'))))
-b = char_class_expr(a[1])
-print(b)
-'''
-
-tree = lexer.regex(r"[hcb](a|t)")
-pprint(tree)
-f = parse(tree)
-pprint(f)
-a = f('d')
-pprint(tuple(a))
-b = map(lambda step: step('a'), a)
-pprint(tuple(b))
+if __name__ == "__main__":
+    #tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
+    regex = input("Enter pattern: ")
+    fa = parse(lexer.regex(regex))
+    while True:
+        test = input("input: ")
+        print("MATCHED ✔️" if fa.process(test, debug=True) else "NOPE ❌")
