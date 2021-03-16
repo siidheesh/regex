@@ -2,7 +2,7 @@ from pprint import pprint
 from nfa import NFA
 import lexer
 
-# FIXME: fix this
+# FIXME: clean this up
 
 
 def parse(tree):
@@ -35,22 +35,21 @@ def concat_expr(kids):
         if kid is None or type(kid) is not tuple:
             raise SyntaxError("invalid expr")
         k, v = kid
+        r = None
         if k == "EXPR":
             r = expr(v)
-            if r is not None:
-                res = r if res is None else res & r
         elif k == "KLEENE":
             r = kleene(v)
-            if r is not None:
-                res = r if res is None else res & r
         elif k == "MATCH":
             r = matchop(v)
-            if r is not None:
-                res = r if res is None else res & r
         elif k == "OPT":
             r = opt(v)
-            if r is not None:
-                res = r if res is None else res & r
+        elif type(k) is tuple and k[0] == "RANGE":
+            r = range_qf(kid)
+        else:
+            raise SyntaxError(f"unknown expression found in CONCAT_EXPR: {k}")
+        if r is not None:
+            res = r if res is None else res & r
 
     return res
 
@@ -89,6 +88,57 @@ def opt(kid):
     if res != None:
         return res.optify()
     return None
+
+
+def range_qf(kid):
+    # TODO: clean this up
+    if kid is None or type(kid) is not tuple:
+        return None
+    range_expr, expr_expr = kid
+    k, v = range_expr
+    if k != "RANGE":
+        raise SyntaxError("expected RANGE in range_qf")
+    if v is None or type(v) is not tuple:
+        raise SyntaxError("invalid range expr")
+
+    expr_tag, expr_inner = expr_expr
+    if expr_tag != "EXPR":
+        raise SyntaxError("expected EXPR in range_qf")
+
+    res = expr(expr_inner)
+    if res is None:
+        return None
+
+    range_type = v[0]
+    if range_type == "N" and len(v) == 2:
+        # range is of type {n}
+        n = v[1]
+        r = res.clone()
+        # match an n-len run of expr
+        for _ in range(n-1):
+            r = r & res
+        return r
+    elif range_type == "N," and len(v) == 2:
+        # range is of type {n,}
+        n = v[1]
+        r = res.clone()
+        # match an n-len run of expr, followed by expr*
+        for _ in range(n-1):
+            r = r & res
+        return r & res.kleenefy()
+    elif range_type == "N,N" and len(v) == 3:
+        # range is of type {n,m}
+        n, m = v[1], v[2]
+        r = NFA()
+        # match a union of repeating exprs of length from n to m
+        for i in range(n-1, m):
+            r1 = res.clone()
+            for _ in range(i):
+                r1 = r1 & res
+            r = r | r1
+        return r
+    else:
+        raise SyntaxError("unknown range type in range_qf")
 
 
 def expr(kid):
@@ -239,7 +289,7 @@ def extended_char(kid):
 if __name__ == "__main__":
     #tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
     regex = input("Enter pattern: ")
-    regex = regex if regex is not "" else r"d+[hc2-47-9g-\x77]+(a|t)*(hello)*|1"
+    regex = regex if regex != "" else r"d{3,}[hc2-47-9g-\x77]{1,3}(a|t)*(hello)*|1"
     tree = lexer.regex(regex)
     pprint(tree)
     fa = parse(tree)

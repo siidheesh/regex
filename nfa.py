@@ -10,8 +10,8 @@ class NFA:
     See below for examples of use
     """
 
-    START = "start"     # start state
-    END = "end"         # final state
+    START = "s"     # start state
+    END = "e"         # final state
 
     def __init__(self):
         self.state = {NFA.START}
@@ -80,6 +80,10 @@ class NFA:
         res.predicates = self.predicates.copy()
         return res
 
+    def embed_nfa(self, other):
+        # TODO: refactor repeating NFA embedding code into here
+        pass
+
     # union op
     def __or__(self, rhs):
         res = NFA()
@@ -120,34 +124,20 @@ class NFA:
             # add transitions
             for idx in hs.transitions:
                 from_state, input = idx
-                if from_state is not NFA.START or hs is rhs:
-                    from_state = mark(from_state)
                 for to_state in hs.transitions[idx]:
-                    if to_state is not NFA.END or hs is self:
-                        to_state = mark(to_state)
-                    res.add_transition(from_state, input, to_state)
+                    res.add_transition(mark(from_state), input, mark(to_state))
             # add predicates
             for from_state in hs.predicates:
                 for predicate, to_state in hs.predicates[from_state]:
-                    if from_state is not NFA.START or hs is rhs:
-                        from_state = mark(from_state)
-                    if to_state is not NFA.END or hs is self:
-                        to_state = mark(to_state)
-                    res.add_transition(from_state, predicate, to_state)
+                    res.add_transition(
+                        mark(from_state), predicate, mark(to_state))
 
+        # connect start and end states
+        # connect lhs inner end to rhs inner start
+        res.add_transition(NFA.START, None, mark_lhs(NFA.START))
         res.add_transition(mark_lhs(NFA.END), None, mark_rhs(NFA.START))
+        res.add_transition(mark_rhs(NFA.END), None, NFA.END)
 
-        return res
-
-    # FIXME: remove this?
-    def __invert__(self):
-        res = NFA()
-        for idx in self.transitions:
-            for to_state in self.transitions[idx]:
-                if to_state is not NFA.END:
-                    # only accept states that weren't originally accepted
-                    res.add_transition(*idx, to_state)
-                    res.add_transition(*idx, NFA.END)
         return res
 
     # match op (match >=1 times)
@@ -173,7 +163,6 @@ class NFA:
         # connect start and end states
         clone.add_transition(NFA.START, None, mark(NFA.START))
         clone.add_transition(mark(NFA.END), None, NFA.END)
-
         # connect inner end state to inner start state
         clone.add_transition(mark(NFA.END), None, mark(NFA.START))
 

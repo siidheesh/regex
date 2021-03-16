@@ -98,10 +98,10 @@ def range_expr():
         m(',')
         n2 = num()
         if n2:
-            return ("RANGE-N,N", n1, n2)
+            return ("RANGE", ("N,N", n1, n2))
         else:
-            return ("RANGE-N,", n1)
-    return ("RANGE-N", n1)
+            return ("RANGE", ("N,", n1))
+    return ("RANGE", ("N", n1))
 
 
 def num():
