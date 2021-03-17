@@ -15,7 +15,6 @@ class NFA:
 
     def __init__(self):
         self.state = {NFA.START}
-        self.accept = NFA.END
         self.transitions = {}
         self.predicates = {}
 
@@ -38,8 +37,6 @@ class NFA:
 
     # invoke transition if applicable
     def transition(self, input):
-        self.state = self.resolve_et()
-
         new_state = set()
         for state in self.state:
             idx = (state, input)
@@ -73,7 +70,7 @@ class NFA:
 
     # returns True if at least one state is accepted
     def accepts(self):
-        return self.accept in self.state
+        return NFA.END in self.state
 
     # Create a shallow clone
     def clone(self):
@@ -82,63 +79,70 @@ class NFA:
         res.predicates = self.predicates.copy()
         return res
 
-    def embed_nfa(self, other):
-        # TODO: refactor repeating NFA embedding code into here
-        pass
+    # Embed the rhs NFA into the target NFA, marking rhs' states
+    #
+    # it's the caller's responsibility to ensure that if multiple NFAs
+    # are embedded into the same target, each NFA is marked differently
+    def embed_nfa(self, rhs, mark):
+        # add transitions
+        for idx in rhs.transitions:
+            from_state, input = idx
+            for to_state in rhs.transitions[idx]:
+                self.add_transition(mark(from_state), input, mark(to_state))
+        # add predicates
+        for from_state in rhs.predicates:
+            for predicate, to_state in rhs.predicates[from_state]:
+                self.add_transition(
+                    mark(from_state), predicate, mark(to_state))
+
+        return self
 
     # union op
     def __or__(self, rhs):
+        # prefer having RHS be a list of NFAs, as it leads to less transient states added
+
+        union = (self,)
+        if type(rhs) not in [list, tuple]:
+            union += (rhs,)
+        else:
+            union += tuple(rhs)  # FIXME: replace with itertools.chain maybe?
+
         res = NFA()
+        union_len = len(union)
+        markers = list(map(_gen_mark, range(union_len)))
 
-        def mark_lhs(state):
-            return str(state)+'l'
-
-        def mark_rhs(state):
-            return str(state)+'r'
-
-        # iterate over lhs and rhs
-        for hs, mark in ((self, mark_lhs), (rhs, mark_rhs)):
-            # add transitions
-            for idx in hs.transitions:
-                from_state, input = idx
-                for to_state in hs.transitions[idx]:
-                    res.add_transition(mark(from_state), input, mark(to_state))
-            # add predicates
-            for from_state in hs.predicates:
-                for pred, to_state in hs.predicates[from_state]:
-                    res.add_transition(mark(from_state), pred, mark(to_state))
+        for i in range(union_len):
+            mark = markers[i]
+            # embed union[i] into res
+            res.embed_nfa(union[i], mark)
             # connect start and end states
             res.add_transition(NFA.START, None, mark(NFA.START))
             res.add_transition(mark(NFA.END), None, NFA.END)
+
         return res
 
     # concatenation op
     def __and__(self, rhs):
+        concat = (self,)
+        if type(rhs) not in [list, tuple]:
+            concat += (rhs,)
+        else:
+            concat += tuple(rhs)
+
         res = NFA()
+        concat_len = len(concat)
+        markers = list(map(_gen_mark, range(concat_len)))
 
-        def mark_lhs(state):
-            return str(state)+'a'
-
-        def mark_rhs(state):
-            return str(state)+'b'
-
-        for hs, mark in ((self, mark_lhs), (rhs, mark_rhs)):
-            # add transitions
-            for idx in hs.transitions:
-                from_state, input = idx
-                for to_state in hs.transitions[idx]:
-                    res.add_transition(mark(from_state), input, mark(to_state))
-            # add predicates
-            for from_state in hs.predicates:
-                for predicate, to_state in hs.predicates[from_state]:
-                    res.add_transition(
-                        mark(from_state), predicate, mark(to_state))
+        for i in range(concat_len):
+            res.embed_nfa(concat[i], markers[i])
+            if i < concat_len - 1:
+                # connect adjacent inner start and end states
+                res.add_transition(markers[i](NFA.END),
+                                   None, markers[i+1](NFA.START))
 
         # connect start and end states
-        # connect lhs inner end to rhs inner start
-        res.add_transition(NFA.START, None, mark_lhs(NFA.START))
-        res.add_transition(mark_lhs(NFA.END), None, mark_rhs(NFA.START))
-        res.add_transition(mark_rhs(NFA.END), None, NFA.END)
+        res.add_transition(NFA.START, None, markers[0](NFA.START))
+        res.add_transition(markers[-1](NFA.END), None, NFA.END)
 
         return res
 
@@ -147,20 +151,8 @@ class NFA:
     def matchify(self):
         clone = self.clone()
 
-        def mark(state):
-            return str(state)+'m'
-
-        # add transitions
-        for idx in self.transitions:
-            from_state, input = idx
-            for to_state in self.transitions[idx]:
-                clone.add_transition(mark(from_state), input, mark(to_state))
-
-        # add predicates
-        for from_state in self.predicates:
-            for predicate, to_state in self.predicates[from_state]:
-                clone.add_transition(
-                    mark(from_state), predicate, mark(to_state))
+        mark = _gen_mark('m')
+        clone.embed_nfa(self, mark)
 
         # connect start and end states
         clone.add_transition(NFA.START, None, mark(NFA.START))
@@ -174,6 +166,7 @@ class NFA:
     def kleenefy(self):
         clone = self.matchify()
         # accept the starting state
+        # we could call optify on clone, but it'd add extra states
         clone.add_transition(NFA.START, None, NFA.END)
         return clone
 
@@ -184,7 +177,7 @@ class NFA:
         return self | fallthrough
 
     # Trim by removing transient states
-    # FIXME: doesnt work, as NFAs aren't generally acylic
+    # FIXME: doesnt work, as NFAs aren't generally acyclic
     """
     def trim(self):
         res = NFA()
@@ -245,6 +238,11 @@ class NFA:
         return self.accepts()
 
 
+# returns a lambda that marks states with a suffix
+def _gen_mark(suffix):
+    return lambda state: str(state)+str(suffix)
+
+
 if __name__ == "__main__":
     a = NFA()
     a.add_transition(NFA.START, 'b', NFA.END)
@@ -278,7 +276,7 @@ if __name__ == "__main__":
     a = (a | b | c) & d.kleenefy() & (e & d).kleenefy()
 
     pprint(a.transitions)
-    print(a.state, a.accept)
+    print(a.state)
     a.transition('b')
     print(a.state, a.accepts())
     a.transition('l')

@@ -14,23 +14,25 @@ def union_expr(kids):
     if kids is None or type(kids) is not tuple:
         return None
 
-    res = None
+    union = []
+
     for kid in kids:
         k, v = kid
         if k != "CONCAT_EXPR":
             raise SyntaxError("expected CONCAT_EXPR")
         r = concat_expr(v)
         if r is not None:
-            res = r if res is None else res | r
+            union.append(r)
 
-    return res
+    return union[0] | union[1:] if len(union) > 1 else union[0]
 
 
 def concat_expr(kids):
     if kids is None or type(kids) is not tuple:
         return None
 
-    res = None
+    concat = []
+
     for kid in kids:
         if kid is None or type(kid) is not tuple:
             raise SyntaxError("invalid expr")
@@ -48,10 +50,11 @@ def concat_expr(kids):
             r = range_qf(kid)
         else:
             raise SyntaxError(f"unknown expression found in CONCAT_EXPR: {k}")
-        if r is not None:
-            res = r if res is None else res & r
 
-    return res
+        if r is not None:
+            concat.append(r)
+
+    return concat[0] & concat[1:] if len(concat) > 1 else concat[0]
 
 
 def kleene(kid):
@@ -97,13 +100,13 @@ def range_qf(kid):
     range_expr, expr_expr = kid
     k, v = range_expr
     if k != "RANGE":
-        raise SyntaxError("expected RANGE in range_qf")
+        raise SyntaxError("expected RANGE in range quantifier")
     if v is None or type(v) is not tuple:
         raise SyntaxError("invalid range expr")
 
     expr_tag, expr_inner = expr_expr
     if expr_tag != "EXPR":
-        raise SyntaxError("expected EXPR in range_qf")
+        raise SyntaxError("expected EXPR in range quantifier")
 
     res = expr(expr_inner)
     if res is None:
@@ -113,34 +116,53 @@ def range_qf(kid):
     if range_type == "N" and len(v) == 2:
         # range is of type {n}
         n = v[1]
-        r = res.clone()
         # match an n-len run of expr
-        for _ in range(n-1):
-            r = r & res
-        return r
+        if n > 1:
+            return res & [res for _ in range(n-1)]
+        elif n == 1:
+            return res
+        elif n == 0:
+            return None
+        else:
+            raise SyntaxError("invalid bound in range quantifier")
     elif range_type == "N," and len(v) == 2:
         # range is of type {n,}
         n = v[1]
-        r = res.clone()
-        # match an n-len run of expr, followed by expr*
-        for _ in range(n-1):
-            r = r & res
-        return r & res.kleenefy()
+        if n > 1:
+            # match an n-len run of exprs, followed by expr*
+            concat = [res] * (n-1) + [res.kleenefy()]
+            return res & concat
+        elif n == 1:
+            # match expr atleast once
+            return res.matchify()
+        elif n == 0:
+            # basically the kleene star op
+            return res.kleenefy()
+        else:
+            raise SyntaxError("invalid bound in range quantifier")
     elif range_type == "N,N" and len(v) == 3:
         # range is of type {n,m}
+        # n<m is ensured by extended_char_range
         n, m = v[1], v[2]
-        r = NFA()
-        # match a union of repeating exprs of length from n to m
-        for i in range(n-1, m):
-            if i < 0:
-                continue
-            r1 = res.clone()
-            for _ in range(i):
-                r1 = r1 & res
-            r = r | r1
-        return r
+        if not (n >= 0 and m >= 0 and m >= n):
+            raise SyntaxError("invalid bounds in range quantifier")
+        if m == 0:
+            # skip if upper bound is 0
+            return None
+        union = []
+        for run_len in range(n, m+1):
+            if run_len > 1:
+                union.append(res & [res] * (run_len - 1))
+            elif run_len == 1:
+                union.append(res)
+            else:  # run_len is 0
+                fallthrough = NFA()
+                fallthrough.add_transition(NFA.START, None, NFA.END)
+                union.append(fallthrough)
+        return union[0] | union[1:] if len(union) > 1 else union[0]
+
     else:
-        raise SyntaxError("unknown range type in range_qf")
+        raise SyntaxError("unknown bound type in range quantifier")
 
 
 def expr(kid):
@@ -291,7 +313,7 @@ def extended_char(kid):
 if __name__ == "__main__":
     #tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
     regex = input("Enter pattern: ")
-    regex = regex if regex != "" else r"\[{3,}\?[hc2-4g-\x707-9]{1,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*"
+    regex = regex if regex != "" else r"\[{3,}\??[hc2-4g-\x707-9]{0,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*"
     tree = lexer.regex(regex)
     pprint(tree)
     fa = parse(tree)

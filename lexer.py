@@ -14,7 +14,7 @@ def m(a):
     i += 1
     if test[i] != a:
         raise SyntaxError(
-            f'expected {a}, found {test[i]} at pos {i} of {test}')
+            f'expected \'{a}\', found \'{test[i]}\' at pos {i} of {test}')
 
 
 def regex(string):
@@ -92,12 +92,12 @@ def quantified_expr():
 
 def range_expr():
     n1 = num()
-    if not n1:
+    if n1 is None:
         return None
     if peek() == ',':
         m(',')
         n2 = num()
-        if n2:
+        if n2 is not None:
             return ("RANGE", ("N,N", n1, n2))
         else:
             return ("RANGE", ("N,", n1))
@@ -164,7 +164,8 @@ def extended_char():
             res = char(True)
         if res:
             return ("EXTENDED_CHAR", res)
-            #raise SyntaxError("unrecognised escaped char "+peek())
+        else:
+            raise SyntaxError("unrecognised escaped char "+peek())
     else:
         res = char()
         if not res:
@@ -176,7 +177,7 @@ def char(escaped=False):
     unk_char = peek()
     if not unk_char:
         return None
-    if unk_char not in ".?*+[]}{()|\\" or escaped:
+    if unk_char not in ".?*+-[]}{()|\\" or escaped:
         m(unk_char)
         return ("CHAR", unk_char)
     elif unk_char == '.':
