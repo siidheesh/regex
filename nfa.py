@@ -10,12 +10,12 @@ class NFA:
     See below for examples of use
     """
 
-    START = "s"     # start state
-    END = "e"         # final state
+    START = "s"  # start state
+    END = "e"    # final state
 
     def __init__(self):
         self.state = {NFA.START}
-        self.accept = {NFA.END}
+        self.accept = NFA.END
         self.transitions = {}
         self.predicates = {}
 
@@ -38,7 +38,7 @@ class NFA:
 
     # invoke transition if applicable
     def transition(self, input):
-        self.resolve_et()
+        self.state = self.resolve_et()
 
         new_state = set()
         for state in self.state:
@@ -50,14 +50,16 @@ class NFA:
                 for pred, to_state in self.predicates[state]:
                     if pred(input):
                         new_state.add(to_state)
-        self.state = new_state
 
-        self.resolve_et()
+        self.state = self.resolve_et(new_state)
 
     # non-deterministically follow empty transitions
-    def resolve_et(self):
+    def resolve_et(self, state_list=None):
+        if state_list is None:
+            state_list = self.state
+
         visited = set()
-        queue = list(self.state)
+        queue = list(state_list)
         while queue:
             # keep traversing till we've either seen the state or it doesn't have any empty transitions
             state = queue.pop(0)
@@ -67,11 +69,11 @@ class NFA:
             idx = (state, None)
             if idx in self.transitions:
                 queue.extend(self.transitions[idx])
-        self.state = visited
+        return visited
 
     # returns True if at least one state is accepted
     def accepts(self):
-        return len(self.state & self.accept) > 0
+        return self.accept in self.state
 
     # Create a shallow clone
     def clone(self):
@@ -181,9 +183,56 @@ class NFA:
         fallthrough.add_transition(NFA.START, None, NFA.END)
         return self | fallthrough
 
+    # Trim by removing transient states
+    # FIXME: doesnt work, as NFAs aren't generally acylic
+    """
+    def trim(self):
+        res = NFA()
+        visited = set()
+
+        def dfs(state, orig_state=None):
+            if state in visited:
+                return
+            visited.add(state)
+            print("state", state, "os", orig_state)
+
+            if orig_state is None:
+                orig_state = state
+
+            # all transitions from state
+            state_transitions = filter(
+                lambda from_input: from_input[0] == state, self.transitions)
+
+            for idx in state_transitions:
+                _, input = idx
+                for to_state in self.transitions[idx]:
+                    if input is not None:
+                        # directly transit from orig_state to to_state on input
+                        res.add_transition(orig_state, input, to_state)
+                        # dfs from to_state onwards
+                        dfs(to_state)
+                    elif to_state is NFA.END:
+                        # link to_state to end state
+                        res.add_transition(orig_state, input, to_state)
+                    else:
+                        # continue looking
+                        dfs(to_state, orig_state)
+
+            if state in self.predicates:
+                # predicate transition found
+                for (pred, to_state) in self.predicates[state]:
+                    res.add_transition(orig_state, pred, to_state)
+                    dfs(to_state)
+
+        dfs(NFA.START)
+
+        return res
+    """
+
     # Run automaton on an input string
     def process(self, input, debug=False):
-        self.state = {NFA.START}
+        # resolve empty transitions first in case of empty input
+        self.state = self.resolve_et({NFA.START})
         if debug:
             print("proc: input", input)
         for char in input:

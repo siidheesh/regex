@@ -85,7 +85,7 @@ def quantified_expr():
             return (r, res)
         raise SyntaxError("invalid range expr")
 
-    if tag:
+    if tag and res:
         return (tag, res)
     return res
 
@@ -150,39 +150,38 @@ def enclosed_expr():
 def extended_char():
     if peek() == '\\':
         m('\\')
+        res = None
         if peek() in "dDwWsStrnvf0":
             spc_char = peek()
             m(spc_char)
             return ("EXTENDED_CHAR", ("SPECIAL_CHAR", spc_char))
         elif peek() == 'x':
             res = ascii_char()
-            if res:
-                return ("EXTENDED_CHAR", res)
         elif peek() == 'u':
             res = unicode_char()
-            if res:
-                return ("EXTENDED_CHAR", res)
         else:
-            raise SyntaxError("unrecognised escaped char "+peek())
+            # try to parse as char
+            res = char(True)
+        if res:
+            return ("EXTENDED_CHAR", res)
+            #raise SyntaxError("unrecognised escaped char "+peek())
     else:
         res = char()
         if not res:
-            # raise SyntaxError()
             return None
         return ("EXTENDED_CHAR", res)
 
 
-def char():
+def char(escaped=False):
     unk_char = peek()
     if not unk_char:
         return None
-    if unk_char.isalnum():
+    if unk_char not in ".?*+[]}{()|\\" or escaped:
         m(unk_char)
         return ("CHAR", unk_char)
     elif unk_char == '.':
         m('.')
         return ("WILDCARD", None)
-    # raise SyntaxError("unrecognised char "+unk_char)
     return None
 
 
@@ -205,7 +204,7 @@ def unicode_char():
     hex_string = ""
     for _ in range(4):
         hex_char = peek()
-        if hex_char in "0123456789ABCDEF":
+        if hex_char in "0123456789ABCDEFabcdef":
             m(hex_char)
             hex_string += hex_char
         else:

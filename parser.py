@@ -132,6 +132,8 @@ def range_qf(kid):
         r = NFA()
         # match a union of repeating exprs of length from n to m
         for i in range(n-1, m):
+            if i < 0:
+                continue
             r1 = res.clone()
             for _ in range(i):
                 r1 = r1 & res
@@ -289,7 +291,7 @@ def extended_char(kid):
 if __name__ == "__main__":
     #tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
     regex = input("Enter pattern: ")
-    regex = regex if regex != "" else r"d{3,}[hc2-47-9g-\x77]{1,3}(a|t)*(hello)*|1"
+    regex = regex if regex != "" else r"\[{3,}\?[hc2-4g-\x707-9]{1,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*"
     tree = lexer.regex(regex)
     pprint(tree)
     fa = parse(tree)
