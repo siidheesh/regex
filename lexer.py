@@ -1,8 +1,20 @@
 
 from pprint import pprint
 
+# FIXME: dont use globals
 test = ""
 i = -1
+is_reverse = False
+
+
+def set_reverse(rev):
+    """
+    Set the lexer to reverse concat exprs
+
+    e.g abc|def|g(hi)*j becomes cba|fed|j(ih)*g
+    """
+    global is_reverse
+    is_reverse = rev
 
 
 def peek():
@@ -17,7 +29,7 @@ def m(a):
             f'expected \'{a}\', found \'{test[i]}\' at pos {i} of {test}')
 
 
-def regex(string):
+def lex(string):
     global test, i
     test = string
     i = -1
@@ -45,7 +57,11 @@ def concat_expr():
     while True:
         r = quantified_expr()
         if r:
-            res += (r,)
+            # ordering depends on is_reverse
+            if not is_reverse:
+                res += (r,)
+            else:
+                res = (r,) + res
         else:
             break
     if res != ():
@@ -238,7 +254,7 @@ def char_class_inner():
     res = char_class_expr()
     if res:
         return (tag, res)
-    raise SyntaxError()
+    raise SyntaxError("invalid char class expression")
 
 
 '''
@@ -269,5 +285,5 @@ def char_class_expr():
 
 
 if __name__ == "__main__":
-    pprint(regex(r"[hc\xFFv1]?(a|t)|136[^ab-c.\u111111]"))
+    pprint(lex(r"[hc\xFFv1]?(a|t)|136[^ab-c.\u111111]"))
     # pprint(regex(r"[hc]?(a|t)"))

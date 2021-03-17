@@ -196,7 +196,7 @@ def char_class(kid):
     elif kid[0] != "CHAR_CLASS_INNER":
         raise SyntaxError("invalid char class type")
 
-    #print("emitting char_class, is_neg:", is_neg)
+    # print("emitting char_class, is_neg:", is_neg)
 
     # get tuple of lambdas to test against
     lambdas = char_class_expr(kid[1])
@@ -270,7 +270,7 @@ def extended_char(kid):
     if kid is None or type(kid) is not tuple:
         return None
     k, v = kid
-    #print("emitting extended_char", k, v)
+    # print("emitting extended_char", k, v)
     if k == "CHAR":
         return lambda x: x == v
     elif k == "WILDCARD":
@@ -311,12 +311,19 @@ def extended_char(kid):
 
 
 if __name__ == "__main__":
-    #tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
+    # tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
     regex = input("Enter pattern: ")
     regex = regex if regex != "" else r"\[{3,}\??[hc2-4g-\x707-9]{0,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*"
-    tree = lexer.regex(regex)
+    tree = lexer.lex(regex)
+    lexer.set_reverse(True)
+    tree_rev = lexer.lex(regex)
     pprint(tree)
+    pprint(tree_rev)
     fa = parse(tree)
+    fa_rev = parse(tree_rev)
     while True:
         test = input("test: ")
-        print("MATCHED ✔️" if fa.process(test, debug=True) else "NOPE ❌")
+        print("MATCHED ✔️" if fa.process(test, debug=False) else "NOPE ❌")
+        print(test)
+        print(fa_rev.scan(test[::-1])[::-1])  # each 1 is a start of a match
+        print(fa.scan(test))  # each 1 is an end of a match

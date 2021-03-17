@@ -1,11 +1,13 @@
 # Regex
 
-A crap regex engine written for fun (wip)
+A crap NFA-based regex engine written for fun (beta)
 
 To test:
 
 ```shell
-python parser.py
+python regex.py
 ```
 
 Currently only parses a subset of the POSIX regex spec
+
+It's now able to scan text and find substrings :D

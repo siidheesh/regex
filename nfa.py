@@ -176,56 +176,10 @@ class NFA:
         fallthrough.add_transition(NFA.START, None, NFA.END)
         return self | fallthrough
 
-    # Trim by removing transient states
-    # FIXME: doesnt work, as NFAs aren't generally acyclic
-    """
-    def trim(self):
-        res = NFA()
-        visited = set()
-
-        def dfs(state, orig_state=None):
-            if state in visited:
-                return
-            visited.add(state)
-            print("state", state, "os", orig_state)
-
-            if orig_state is None:
-                orig_state = state
-
-            # all transitions from state
-            state_transitions = filter(
-                lambda from_input: from_input[0] == state, self.transitions)
-
-            for idx in state_transitions:
-                _, input = idx
-                for to_state in self.transitions[idx]:
-                    if input is not None:
-                        # directly transit from orig_state to to_state on input
-                        res.add_transition(orig_state, input, to_state)
-                        # dfs from to_state onwards
-                        dfs(to_state)
-                    elif to_state is NFA.END:
-                        # link to_state to end state
-                        res.add_transition(orig_state, input, to_state)
-                    else:
-                        # continue looking
-                        dfs(to_state, orig_state)
-
-            if state in self.predicates:
-                # predicate transition found
-                for (pred, to_state) in self.predicates[state]:
-                    res.add_transition(orig_state, pred, to_state)
-                    dfs(to_state)
-
-        dfs(NFA.START)
-
-        return res
-    """
-
     # Run automaton on an input string
     def process(self, input, debug=False):
         # resolve empty transitions first in case of empty input
-        self.state = self.resolve_et({NFA.START})
+        self.reset()
         if debug:
             print("proc: input", input)
         for char in input:
@@ -236,6 +190,26 @@ class NFA:
                 # no active branches left
                 break
         return self.accepts()
+
+    def reset(self):
+        """
+        Reset NFA to initial state
+        """
+        self.state = self.resolve_et({NFA.START})
+
+    def scan(self, input):
+        """
+        Runs the NFA on an input and returns a list indicating if the NFA was in an accepting state after each transition
+        """
+        self.reset()
+        res = []
+        for i in range(len(input)):
+            self.transition(input[i])
+            res.append(self.accepts())
+            if not len(self.state):
+                # reset NFA if no longer active
+                self.reset()
+        return res
 
 
 # returns a lambda that marks states with a suffix
