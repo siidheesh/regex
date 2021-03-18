@@ -46,14 +46,17 @@ def anchored_expr(kid, anchor_type):
     if '^' in anchor_type:
         start = NFA()
         start.add_transition(NFA.START, None, NFA.END)
+        # invariant: at the start of input or after a newline
         start.add_invariant(
-            NFA.START, lambda flags: flags["start"])
+            NFA.START, lambda f: f['pos'] == 0 or f["input"][f['pos'] - 1] == '\n')
         concat_list = [start] + concat_list
 
     if '$' in anchor_type:
         end = NFA()
         end.add_transition(NFA.START, None, NFA.END)
-        end.add_invariant(NFA.START, lambda flags: flags["end"])
+        # invariant: at the end of input or before a newline
+        end.add_invariant(
+            NFA.START, lambda f: f['pos'] == f["input_len"] - 1 or f["input"][f['pos'] + 1] == '\n')
         concat_list += [end]
 
     if len(concat_list) > 1:
@@ -82,6 +85,31 @@ def concat_expr(kids):
             r = opt(v)
         elif type(k) is tuple and k[0] == "RANGE":
             r = range_qf(kid)
+        # FIXME: lookaheads and lookbehinds don't currently work if the fa is later kleenefied etc.
+        elif k == "LOOKAHEAD" or k == "LOOKAHEAD_NEG":
+            is_neg = k == "LOOKAHEAD_NEG"
+            lookahead_fa = expr(v)
+            if len(concat) == 0:
+                raise SyntaxError("lookahead is not followed by an expression")
+            else:
+                # run the lookbehind fa against the input ahead of the current pos
+                def lookahead_invariant(flags):
+                    res = lookahead_fa.scan(flags["input"][flags["pos"]:])
+                    return (is_neg and True not in res) or (not is_neg and True in res)
+                concat[-1].add_invariant(NFA.START, lookahead_invariant)
+        elif k == "LOOKBEHIND" or k == "LOOKBEHIND_NEG":
+            is_neg = k == "LOOKBEHIND_NEG"
+            # the lookbehind expr is inverted by the lexer
+            lookbehind_fa = expr(v)
+            if len(concat) == 0:
+                raise SyntaxError(
+                    "lookbehind is not followed by an expression")
+            else:
+                # run the lookbehind fa against the reverse of the input before the current
+                def lookbehind_invariant(flags):
+                    res = lookbehind_fa.scan(flags["input"][flags["pos"]::-1])
+                    return (is_neg and True not in res) or (not is_neg and True in res)
+                concat[-1].add_invariant(NFA.START, lookbehind_invariant)
         else:
             raise SyntaxError(f"unknown expression found in CONCAT_EXPR: {k}")
 

@@ -16,13 +16,15 @@ What it doesn't support (yet):
 
 - ~~^ (matching the starting position) \*~~
 - ~~$ (matching the ending position) \*~~
-- Lookaheads
-- Lookbehinds\*\*
+- ~~Lookaheads~~ <sup>beta\*\*\*<sup>
+- ~~Lookbehinds\*\*~~ <sup>beta\*\*\*<sup>
 - Capture groups
 - Backreferences\*\*
 
 ~~<sub>\* as the engine currently finds all matching substrings, an interim fix would be to filter them accordingly<sub>~~
 
 <sub>\*\* might not be possible with a FA-based engine<sub>
+
+<sub>\*\*\* lookaheads and lookbehinds currently don't work within a quantified expression (\*,+,?,{n,m})<sub>
 
 It's now able to scan text and find substrings :D

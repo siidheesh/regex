@@ -72,10 +72,15 @@ def anchored_expr():
 def concat_expr():
     res = ()
     while True:
+        r = None
         if peek(2) == '(?':
             m('(')
             m('?')
-            r = lookahead()
+            if peek() == '<':
+                m('<')
+                r = lookbehind()
+            else:
+                r = lookahead()
             m(')')
             if is_reverse:
                 continue
@@ -100,6 +105,23 @@ def lookahead():
     elif peek() == '=':
         m('=')
         return ("LOOKAHEAD", union_expr())
+    else:
+        raise SyntaxError("invalid lookahead expression")
+
+
+def lookbehind():
+    if peek() == '!':
+        m('!')
+        set_reverse(not is_reverse)
+        r = union_expr()
+        set_reverse(not is_reverse)
+        return ("LOOKBEHIND_NEG", r) if r is not None else None
+    elif peek() == '=':
+        m('=')
+        set_reverse(not is_reverse)
+        r = union_expr()
+        set_reverse(not is_reverse)
+        return ("LOOKBEHIND", r) if r is not None else None
     else:
         raise SyntaxError("invalid lookahead expression")
 

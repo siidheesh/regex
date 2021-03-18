@@ -17,7 +17,7 @@ class NFA:
         # the NFA's current state(s)
         self.state = {NFA.START}
         # flags pertinent to the input being processed
-        self.flags = {"start": True, "end": False}
+        self.flags = {}
         self.transitions = {}
         # transitions that are taken when a predicate is satisfied
         self.predicates = {}
@@ -208,15 +208,15 @@ class NFA:
     def process(self, input, start, end, debug=False):
         # resolve empty transitions first in case of empty input
         input_len = len(input)
-        self.flags["start"] = start == 0 or input[start-1] == '\n'
-        self.flags["end"] = start == input_len - 1 or input[start+1] == '\n'
+        self.flags["pos"] = start
+        self.flags["input"] = input
+        self.flags["input_len"] = input_len
         # set flags before calling reset as empty transitions may involve invariant checking
         self.reset()
         if debug:
             print("proc: input", input)
         for i in range(start, end):
-            self.flags["start"] = i == 0 or input[i-1] == '\n'
-            self.flags["end"] = i == input_len - 1 or input[i+1] == '\n'
+            self.flags["pos"] = i
             self.transition(input[i])
             if debug:
                 print("proc:", input[i], self.accepts(), self.state)
@@ -236,13 +236,13 @@ class NFA:
         Runs the NFA on an input and returns a list indicating if the NFA was in an accepting state after each transition
         """
         input_len = len(input)
-        self.flags["start"] = True
-        self.flags["end"] = input_len > 0
+        self.flags["pos"] = 0
+        self.flags["input"] = input
+        self.flags["input_len"] = input_len
         self.reset()
         res = []
         for i in range(input_len):
-            self.flags["start"] = i == 0 or input[i-1] == '\n'
-            self.flags["end"] = i == input_len - 1 or input[i+1] == '\n'
+            self.flags["pos"] = i
             if not len(self.state):
                 # reset NFA if no longer active
                 self.reset()
