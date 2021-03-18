@@ -8,6 +8,18 @@ To test:
 python regex.py
 ```
 
-Currently only parses a subset of the POSIX regex spec
+~~Currently only parses a subset of the POSIX regex spec~~
+
+Supports most of the POSIX BRE spec!
+
+What it doesn't support (yet):
+
+- ^ (matching the starting position)
+- Lookaheads
+- Lookbehinds\*
+- Capture groups
+- Backreferences\*
+
+<sub>\* might not be possible with a FA-based engine<sub>
 
 It's now able to scan text and find substrings :D
