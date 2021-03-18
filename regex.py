@@ -8,8 +8,10 @@ class Regex:
     """
 
     def __init__(self, pattern):
+        # forward nfa looks for match end positions
         self.fa = parser.parse(lexer.lex(pattern))
         lexer.set_reverse(True)
+        # reverse nfa looks for match start positions
         self.fa_rev = parser.parse(lexer.lex(pattern))
 
     def scan(self, input, debug=False):
@@ -32,7 +34,6 @@ class Regex:
             # highlight matching substrings, if debug
             ustart = '\u001b[32;1m\033[4m'
             uend = '\u001b[0m\033[0m'
-            count = 1
 
         matches = []
 
@@ -40,7 +41,8 @@ class Regex:
             print(input)
             print(start)
             print(end)"""
-
+        # this returns all possible matching substrings
+        # to get the longest substring, take the smallest starting pos and the largest ending pos and check if valid
         for i in range(len(start)):
             # iterate over start positions
             if start[i]:
@@ -53,20 +55,20 @@ class Regex:
                         if self.fa.process(input[i:j+1]):
                             matches.append((i, j+1))
                             if debug:
-                                print(count, '\t', input[:i]+ustart +
-                                      input[i:j+1]+uend+input[j+1:])
-                                count += 1
+                                print(input[:i] + ustart +
+                                      input[i:j+1] + uend + input[j+1:])
         return matches
 
 
 if __name__ == "__main__":
     pattern = input("Enter pattern: ")
     if pattern == "":
-        pattern = r"\[{3,}\??[hc2-4g-\x707-9]{0,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*"
+        pattern = r"(\[{3,}\??[hc2-4g-\x707-9]{0,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*)+"
+        # fp pattern: (\+|-)?([0-9]+\.?[0-9]*|\.[0-9]+)([eE](\+|-)?[0-9]+)?
         print("using def. pattern", pattern)
     reg = Regex(pattern)
 
     while True:
         test = input("test: ")
         matches = reg.scan(test, debug=True)
-        print("MATCHED ✔️" if matches else "NOPE ❌")
+        print(f"{len(matches)} match(es) ✔️" if matches else "NOPE ❌")

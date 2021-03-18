@@ -17,8 +17,8 @@ def set_reverse(rev):
     is_reverse = rev
 
 
-def peek():
-    return test[i+1] if i+1 < len(test) else None
+def peek(by_amt=1):
+    return test[i+1:i+by_amt+1] if i+by_amt < len(test) else None
 
 
 def m(a):
@@ -55,18 +55,36 @@ def union_expr():
 def concat_expr():
     res = ()
     while True:
-        r = quantified_expr()
-        if r:
-            # ordering depends on is_reverse
-            if not is_reverse:
-                res += (r,)
-            else:
-                res = (r,) + res
+        if peek(2) == '(?':
+            m('(')
+            m('?')
+            r = lookahead()
+            m(')')
+            if is_reverse:
+                continue
         else:
+            r = quantified_expr()
+        if not r:
             break
+        # ordering depends on is_reverse
+        if not is_reverse:
+            res += (r,)
+        else:
+            res = (r,) + res
     if res != ():
         return ("CONCAT_EXPR", res)
     return None
+
+
+def lookahead():
+    if peek() == '!':
+        m('!')
+        return ("LOOKAHEAD_NEG", union_expr())
+    elif peek() == '=':
+        m('=')
+        return ("LOOKAHEAD", union_expr())
+    else:
+        raise SyntaxError("invalid lookahead expression")
 
 
 def quantified_expr():
@@ -193,12 +211,18 @@ def char(escaped=False):
     unk_char = peek()
     if not unk_char:
         return None
-    if unk_char not in ".?*+-[]}{()|\\" or escaped:
+    if unk_char not in ".?*+[]}{()|\\^$" or escaped:
         m(unk_char)
         return ("CHAR", unk_char)
     elif unk_char == '.':
-        m('.')
+        m(unk_char)
         return ("WILDCARD", None)
+    elif unk_char == '^':
+        m(unk_char)
+        return ("CARET", None)
+    elif unk_char == '$':
+        m(unk_char)
+        return ("DOLLAR", None)
     return None
 
 
