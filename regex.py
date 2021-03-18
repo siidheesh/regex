@@ -25,12 +25,6 @@ class Regex:
             # match empty input
             return [(0, 0)]
 
-        # FIXME: replace each newline with newline+stx, and add stx and newline at the front and end resp.
-        # atm it requires all top-level concat exprs to start with a ^
-        #input = '\x02' + '\n\x02'.join(input.split('\n')) + '\n'
-        #input += '\n'
-        # FIXME: ^this breaks reverse matching of exprs with no $
-
         # match start position(s)
         start = self.fa_rev.scan(input[::-1])[::-1]
         # match end position(s)
@@ -60,7 +54,7 @@ class Regex:
                 # confirm the match
                 # TODO: confirming the match is necessary for matches with
                 # consecutive start and end positions, but is it always necessary?
-                if self.fa.process(input[i:j+1]):
+                if self.fa.process(input, i, j+1):
                     matches.append((i, j+1))
                     if debug:
                         print(input[:i] + ustart +
@@ -71,7 +65,7 @@ class Regex:
 if __name__ == "__main__":
     pattern = input("Enter pattern: ")
     if pattern == "":
-        pattern = r"(\[{3,}\??[hc2-4g-\x707-9]{,3}(a$|t)*(he+llo)*|.\++$|^(\u1f60B|எழுத்து)*)+"
+        pattern = r"^\[{3,}\??[hc2-4g-\x707-9]{,3}(a$|t)*(he+llo$)*|^(\s*.\++\s*)+$|^(\u1f60B|எழுத்து$)*"
         # fp pattern: (\+|-)?([0-9]+\.?[0-9]*|\.[0-9]+)([eE](\+|-)?[0-9]+)?
         print("using def. pattern", pattern)
     reg = Regex(pattern)

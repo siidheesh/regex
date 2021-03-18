@@ -8,6 +8,7 @@ import lexer
 def parse(tree):
     if tree[0] == "UNION_EXPR":
         return union_expr(tree[1])
+    raise SyntaxError("expected a union expression at the root")
 
 
 def union_expr(kids):
@@ -17,14 +18,47 @@ def union_expr(kids):
     union = []
 
     for kid in kids:
-        k, v = kid
-        if k != "CONCAT_EXPR":
-            raise SyntaxError("expected CONCAT_EXPR")
-        r = concat_expr(v)
+        k = kid[0]
+        if k == "CONCAT_EXPR":
+            r = concat_expr(kid[1])
+        elif k == "ANCHORED_EXPR":
+            k, anchor_type, v = kid
+            r = anchored_expr(v, anchor_type)
+        else:
+            raise SyntaxError("expected ANCHORED_EXPR")
+
         if r is not None:
             union.append(r)
 
     return union[0] | union[1:] if len(union) > 1 else union[0]
+
+
+def anchored_expr(kid, anchor_type):
+    if kid is None or type(kid) is not tuple:
+        return None
+    k, v = kid
+
+    if k != "CONCAT_EXPR":
+        raise SyntaxError("expected CONCAT_EXPR in ANCHORED_EXPR")
+
+    concat_list = [concat_expr(v)]
+
+    if '^' in anchor_type:
+        start = NFA()
+        start.add_transition(NFA.START, None, NFA.END)
+        start.add_invariant(
+            NFA.START, lambda flags: flags["start"])
+        concat_list = [start] + concat_list
+
+    if '$' in anchor_type:
+        end = NFA()
+        end.add_transition(NFA.START, None, NFA.END)
+        end.add_invariant(NFA.START, lambda flags: flags["end"])
+        concat_list += [end]
+
+    if len(concat_list) > 1:
+        return concat_list[0] & concat_list[1:]
+    return concat_list[0]
 
 
 def concat_expr(kids):
@@ -316,6 +350,7 @@ def extended_char(kid):
         raise SyntaxError("invalid extended char")
 
 
+"""
 if __name__ == "__main__":
     # tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
     regex = input("Enter pattern: ")
@@ -333,3 +368,4 @@ if __name__ == "__main__":
         print(test)
         print(fa_rev.scan(test[::-1])[::-1])  # each 1 is a start of a match
         print(fa.scan(test))  # each 1 is an end of a match
+"""

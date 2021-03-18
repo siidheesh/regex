@@ -14,9 +14,15 @@ class NFA:
     END = "e"    # final state
 
     def __init__(self):
+        # the NFA's current state(s)
         self.state = {NFA.START}
+        # flags pertinent to the input being processed
+        self.flags = {"start": True, "end": False}
         self.transitions = {}
+        # transitions that are taken when a predicate is satisfied
         self.predicates = {}
+        # list of conditions to be checked before accepting a state
+        self.invariants = {}
 
     # Add a transition from state fr to state to, on input
     # Input can be callable
@@ -35,6 +41,24 @@ class NFA:
             else:
                 self.transitions[idx].add(to)
 
+    # add an invariant to be upheld when in a particular state
+    def add_invariant(self, state, cond):
+        if not callable(input):
+            raise ValueError("cond must be function-like")
+        if state not in self.invariants:
+            self.invariants[state] = {cond}
+        else:
+            self.invariants[state].add(cond)
+
+    # check if the state upholds the invariants, if any
+    def check_invariant(self, state):
+        if state not in self.invariants:
+            return True
+        for cond in self.invariants[state]:
+            if not cond(self.flags):
+                return False
+        return True
+
     # invoke transition if applicable
     def transition(self, input):
         new_state = set()
@@ -42,10 +66,11 @@ class NFA:
             idx = (state, input)
             if idx in self.transitions:
                 for to_state in self.transitions[idx]:
-                    new_state.add(to_state)
+                    if self.check_invariant(to_state):
+                        new_state.add(to_state)
             if state in self.predicates:
                 for pred, to_state in self.predicates[state]:
-                    if pred(input):
+                    if pred(input) and self.check_invariant(to_state):
                         new_state.add(to_state)
 
         self.state = self.resolve_et(new_state)
@@ -60,7 +85,7 @@ class NFA:
         while queue:
             # keep traversing till we've either seen the state or it doesn't have any empty transitions
             state = queue.pop(0)
-            if state in visited:
+            if state in visited or not self.check_invariant(state):
                 continue
             visited.add(state)
             idx = (state, None)
@@ -94,7 +119,10 @@ class NFA:
             for predicate, to_state in rhs.predicates[from_state]:
                 self.add_transition(
                     mark(from_state), predicate, mark(to_state))
-
+        # add invariants
+        for state in rhs.invariants:
+            for cond in rhs.invariants[state]:
+                self.add_invariant(mark(state), cond)
         return self
 
     # union op
@@ -176,16 +204,22 @@ class NFA:
         fallthrough.add_transition(NFA.START, None, NFA.END)
         return self | fallthrough
 
-    # Run automaton on an input string
-    def process(self, input, debug=False):
+    # Run automaton on input[start:end]
+    def process(self, input, start, end, debug=False):
         # resolve empty transitions first in case of empty input
+        input_len = len(input)
+        self.flags["start"] = start == 0 or input[start-1] == '\n'
+        self.flags["end"] = start == input_len - 1 or input[start+1] == '\n'
+        # set flags before calling reset as empty transitions may involve invariant checking
         self.reset()
         if debug:
             print("proc: input", input)
-        for char in input:
-            self.transition(char)
+        for i in range(start, end):
+            self.flags["start"] = i == 0 or input[i-1] == '\n'
+            self.flags["end"] = i == input_len - 1 or input[i+1] == '\n'
+            self.transition(input[i])
             if debug:
-                print("proc:", char, self.accepts(), self.state)
+                print("proc:", input[i], self.accepts(), self.state)
             if not len(self.state):
                 # no active branches left
                 break
@@ -201,14 +235,19 @@ class NFA:
         """
         Runs the NFA on an input and returns a list indicating if the NFA was in an accepting state after each transition
         """
+        input_len = len(input)
+        self.flags["start"] = True
+        self.flags["end"] = input_len > 0
         self.reset()
         res = []
-        for i in range(len(input)):
-            self.transition(input[i])
-            res.append(self.accepts())
+        for i in range(input_len):
+            self.flags["start"] = i == 0 or input[i-1] == '\n'
+            self.flags["end"] = i == input_len - 1 or input[i+1] == '\n'
             if not len(self.state):
                 # reset NFA if no longer active
                 self.reset()
+            self.transition(input[i])
+            res.append(self.accepts())
         return res
 
 

@@ -39,7 +39,7 @@ def lex(string):
 def union_expr():
     res = ()
     while True:
-        r = concat_expr()
+        r = anchored_expr()
         if not r:
             break
         res += (r,)
@@ -50,6 +50,23 @@ def union_expr():
     if res != ():
         return ("UNION_EXPR", res)
     return None
+
+
+def anchored_expr():
+    tag = ''
+    if peek() == '^':
+        m('^')
+        tag += '^' if not is_reverse else '$'
+    res = concat_expr()
+    if peek() == '$':
+        m('$')
+        tag += '$' if not is_reverse else '^'
+    if res is None:
+        return None
+    if tag != '':
+        return ("ANCHORED_EXPR", tag, res)
+    else:
+        return res
 
 
 def concat_expr():
@@ -224,12 +241,6 @@ def char(escaped=False):
     elif unk_char == '.':
         m(unk_char)
         return ("WILDCARD", None)
-    elif unk_char == '^':
-        m(unk_char)
-        return ("CARET", None)
-    elif unk_char == '$':
-        m(unk_char)
-        return ("DOLLAR", None)
     return None
 
 
