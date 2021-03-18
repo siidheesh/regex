@@ -25,10 +25,12 @@ class Regex:
             # match empty input
             return [(0, 0)]
 
+        # add a newline (for $ matching)
+        input += '\n'
         # match start position(s)
-        start = self.fa_rev.scan(test[::-1])[::-1]
+        start = self.fa_rev.scan(input[::-1])[::-1]
         # match end position(s)
-        end = self.fa.scan(test)
+        end = self.fa.scan(input)
 
         if debug:
             # highlight matching substrings, if debug
@@ -42,28 +44,30 @@ class Regex:
             print(start)
             print(end)"""
         # this returns all possible matching substrings
-        # to get the longest substring, take the smallest starting pos and the largest ending pos and check if valid
+        # to get the longest match, take the smallest starting pos and the largest ending pos and check if valid
         for i in range(len(start)):
             # iterate over start positions
-            if start[i]:
-                for j in range(i, len(start)):
-                    # iterate over end positions
-                    if end[j]:
-                        # confirm the match
-                        # TODO: confirming the match is necessary for matches with
-                        # consecutive start and end positions, but is it always necessary?
-                        if self.fa.process(input[i:j+1]):
-                            matches.append((i, j+1))
-                            if debug:
-                                print(input[:i] + ustart +
-                                      input[i:j+1] + uend + input[j+1:])
+            if not start[i]:
+                continue
+            for j in range(i, len(start)):
+                # iterate over end positions
+                if not end[j]:
+                    continue
+                # confirm the match
+                # TODO: confirming the match is necessary for matches with
+                # consecutive start and end positions, but is it always necessary?
+                if self.fa.process(input[i:j+1]):
+                    matches.append((i, j+1))
+                    if debug:
+                        print(input[:i] + ustart +
+                              input[i:j+1] + uend + input[j+1:])
         return matches
 
 
 if __name__ == "__main__":
     pattern = input("Enter pattern: ")
     if pattern == "":
-        pattern = r"(\[{3,}\??[hc2-4g-\x707-9]{0,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*)+"
+        pattern = r"(\[{3,}\??[hc2-4g-\x707-9]{0,3}(a$|t)*(he+llo)*|.\++$|^(\u1f60B|எழுத்து)*)+"
         # fp pattern: (\+|-)?([0-9]+\.?[0-9]*|\.[0-9]+)([eE](\+|-)?[0-9]+)?
         print("using def. pattern", pattern)
     reg = Regex(pattern)

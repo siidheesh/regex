@@ -207,9 +207,7 @@ def char_class(kid):
             res = res or test(x)
             if not is_neg and res:  # short-circuit if not complementary
                 return True
-        if is_neg and not res:
-            return True
-        return False
+        return is_neg and not res
 
     # return lambda that tests for at least one match
     return char_class_helper
@@ -305,7 +303,11 @@ def extended_char(kid):
         elif v == "0":
             return lambda x: x == '\0'
         else:
-            raise SyntaxError("invalid escaped char")
+            raise SyntaxError("invalid special char")
+    elif k == "DOLLAR":
+        return lambda x: x == '\n'
+    elif k == "CARET":
+        return lambda x: x == '\x02'  # STX, FIXME
     else:
         raise SyntaxError("invalid extended char")
 
