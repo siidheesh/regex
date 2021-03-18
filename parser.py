@@ -140,29 +140,33 @@ def range_qf(kid):
             return res.kleenefy()
         else:
             raise SyntaxError("invalid bound in range quantifier")
+    elif range_type == ",N" and len(v) == 2:
+        # range is of type {,n} (eq. to {0,n})
+        return range_qf_n_m(0, v[1], res)
     elif range_type == "N,N" and len(v) == 3:
         # range is of type {n,m}
-        # n<m is ensured by extended_char_range
-        n, m = v[1], v[2]
-        if not (n >= 0 and m >= 0 and m >= n):
-            raise SyntaxError("invalid bounds in range quantifier")
-        if m == 0:
-            # skip if upper bound is 0
-            return None
-        union = []
-        for run_len in range(n, m+1):
-            if run_len > 1:
-                union.append(res & [res] * (run_len - 1))
-            elif run_len == 1:
-                union.append(res)
-            else:  # run_len is 0
-                fallthrough = NFA()
-                fallthrough.add_transition(NFA.START, None, NFA.END)
-                union.append(fallthrough)
-        return union[0] | union[1:] if len(union) > 1 else union[0]
-
+        return range_qf_n_m(v[1], v[2], res)
     else:
         raise SyntaxError("unknown bound type in range quantifier")
+
+
+def range_qf_n_m(n, m, expr_fa):
+    if not (n >= 0 and m >= 0 and m >= n):
+        raise SyntaxError("invalid bounds in range quantifier")
+    if m == 0:
+        # skip if upper bound is 0
+        return None
+    union = []
+    for run_len in range(n, m+1):
+        if run_len > 1:
+            union.append(expr_fa & [expr_fa] * (run_len - 1))
+        elif run_len == 1:
+            union.append(expr_fa)
+        else:  # run_len is 0
+            fallthrough = NFA()
+            fallthrough.add_transition(NFA.START, None, NFA.END)
+            union.append(fallthrough)
+    return union[0] | union[1:] if len(union) > 1 else union[0]
 
 
 def expr(kid):
@@ -315,7 +319,7 @@ def extended_char(kid):
 if __name__ == "__main__":
     # tree = lexer.regex(r"[hcb](a|t)*(hello)*|1")
     regex = input("Enter pattern: ")
-    regex = regex if regex != "" else r"\[{3,}\??[hc2-4g-\x707-9]{0,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*"
+    regex = regex if regex != "" else r"\[{,3}\??[hc2-4g-\x707-9]{0,3}(a|t)*(he+llo)*|.\++|(\u1f60B|எழுத்து)*"
     tree = lexer.lex(regex)
     lexer.set_reverse(True)
     tree_rev = lexer.lex(regex)

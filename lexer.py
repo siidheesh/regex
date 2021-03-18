@@ -125,6 +125,13 @@ def quantified_expr():
 
 
 def range_expr():
+    if peek() == ',':
+        # range is of type ',NUM'
+        m(',')
+        n1 = num()
+        if n1 is not None:
+            return ("RANGE", (",N", n1))
+        return None
     n1 = num()
     if n1 is None:
         return None

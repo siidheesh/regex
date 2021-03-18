@@ -21,7 +21,7 @@ OPT_EXPR -> EXPR ?
 
 RANGES_EXPR -> EXPR { RANGE }
 
-RANGE -> NUM || NUM , || NUM , NUM
+RANGE -> NUM || NUM , || NUM , NUM || , NUM
 
 EXPR -> ( UNION_EXPR ) || ENCLOSED_EXPR
 
