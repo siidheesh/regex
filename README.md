@@ -14,15 +14,13 @@ Supports most of the POSIX BRE spec!
 
 What it doesn't support (yet):
 
-- ~~^ (matching the starting position) \*~~
-- ~~$ (matching the ending position) \*~~
-- ~~Lookaheads~~ <sup>beta<sup>
-- ~~Lookbehinds~~ <sup>beta\*\*\*<sup>
+- ~~^ (matching the starting position)~~
+- ~~$ (matching the ending position)~~
+- ~~Lookaheads~~ †
+- ~~Lookbehinds~~ †
 - Capture groups
-- Backreferences\*\*
+- Backreferences\*
 
-~~<sub>\* as the engine currently finds all matching substrings, an interim fix would be to filter them accordingly<sub>~~
+<sub>\* might not be possible with a FA-based engine<sub>
 
-<sub>\*\* might not be possible with a FA-based engine<sub>
-
-<sub>\*\*\* -ve lookaheads and -ve lookbehinds don't currently work properly<sub>
+<sub>† negative lookarounds are greedy, i.e they'll reject if the expression is found _anywhere_ ahead of (or behind) the current pos<sub>

@@ -1,6 +1,4 @@
-from pprint import pprint
 from nfa import NFA
-import lexer
 
 # FIXME: clean this up
 
@@ -88,46 +86,46 @@ def concat_expr(kids):
         # FIXME: lookaheads and lookbehinds don't currently work if the fa is later kleenefied etc.
         elif k == "LOOKAHEAD" or k == "LOOKAHEAD_NEG":
             is_neg = k == "LOOKAHEAD_NEG"
-            lookahead_tree, expr_tree = v
-            if not (lookahead_tree[0] == "CONCAT_EXPR" and expr_tree[0] == "EXPR"):
-                raise SyntaxError("expected EXPR in lookahead")
-            la_fa = concat_expr(lookahead_tree[1])
-            r = expr(expr_tree[1])
+            k, lookahead_tree = v
+            if k != "UNION_EXPR":
+                raise SyntaxError(f"expected UNION_EXPR in lookahead")
+            la_fa = union_expr(lookahead_tree)
 
             # run the lookbehind fa against the input ahead of the current pos
             def lookahead_invariant(f):
                 pos = f["pos"]
                 input = f["input"]
                 inlen = f["input_len"]
-                if pos + 1 >= inlen:
+                if pos + 1 > inlen:
                     return False
                 res = la_fa.process(input, pos+1, inlen, short_circuit=True)
                 return (is_neg and not res) or (not is_neg and res)
 
             # if the expr is successfully matched, check if the lookahead is satisfied
-            r.add_invariant(NFA.END, lookahead_invariant)
+            r = NFA()
+            r.add_transition(NFA.START, None, NFA.END)
+            r.add_invariant(NFA.START, lookahead_invariant)
 
         elif k == "LOOKBEHIND" or k == "LOOKBEHIND_NEG":
             is_neg = k == "LOOKBEHIND_NEG"
             # the lookbehind expr is inverted by the lexer
-            lookbehind_tree, expr_tree = v
-            if not (lookbehind_tree[0] == "CONCAT_EXPR" and expr_tree[0] == "EXPR"):
-                raise SyntaxError("expected EXPR in lookbehind")
-            lb_fa = concat_expr(lookbehind_tree[1])
-            r = expr(expr_tree[1])
+            k, lookbehind_tree = v
+            if k != "UNION_EXPR":
+                raise SyntaxError(f"expected UNION_EXPR in lookbehind")
+            lb_fa = union_expr(lookbehind_tree)
 
             # run the lookbehind fa against the reverse of the input before the current
             def lookbehind_invariant(f):
                 pos = f["pos"]
                 input = f["input"][pos::-1]
-
-                # FIXME: negative lookbehinds dont work
                 if len(input) < pos + 1:
                     return False
                 res = lb_fa.process(input, 0, pos+1, short_circuit=True)
                 return (is_neg and not res) or (not is_neg and res)
 
             # before the expr is tested, check if the lookbehind is satisfied
+            r = NFA()
+            r.add_transition(NFA.START, None, NFA.END)
             r.add_invariant(NFA.START, lookbehind_invariant)
 
         else:

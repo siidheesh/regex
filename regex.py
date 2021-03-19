@@ -65,9 +65,9 @@ class Regex:
 if __name__ == "__main__":
     pattern = input("Enter pattern: ")
     if pattern == "":
-        pattern = r"^\[{3,}\??[hc2-4g-\x707-9]{,3}((a$|t)*)(gg|wp|lol)?a(?<=(wp|lol))b(?=he{2,3}llo)(he+llo$)*|^(\s*.\++\s*)+$|^(\u1f60B|எழுத்து$)*"
+        pattern = r"^\[{3,}\??[hc2-4g-\x707-9]{,3}((a$|t)*)(gg|wp|lol)?(?<=wp|lol)a(?=he{2,3}llo)(he+llo$)*|^(\s*.\++\s*)+$|^(\u1f60B|எழுத்து$)*|((abc|def)*(?<!^def)ghi)|(abc(?=def$)(ghi|def$|lol)*)+|([\+\-]?(?=\d*[.eE])([0-9]?\.[0-9]+|\.[0-9]+)([eE][\+\-]?[0-9]+)?)"
         # fp pattern: (\+|-)?([0-9]+\.?[0-9]*|\.[0-9]+)([eE](\+|-)?[0-9]+)?
-        #pattern = r"(abc|def)(ghi)(?<=def)$"
+        # fp pattern (no integers): [\+\-]?(?=\d*[.eE])([0-9]?\.[0-9]+|\.[0-9]+)([eE][\+\-]?[0-9]+)?
         print("using def. pattern", pattern)
     reg = Regex(pattern)
 
