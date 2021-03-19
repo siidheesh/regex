@@ -72,20 +72,7 @@ def anchored_expr():
 def concat_expr():
     res = ()
     while True:
-        r = None
-        if peek(2) == '(?':
-            m('(')
-            m('?')
-            if peek() == '<':
-                m('<')
-                r = lookbehind()
-            else:
-                r = lookahead()
-            m(')')
-            if is_reverse:
-                continue
-        else:
-            r = quantified_expr()
+        r = quantified_expr()
         if not r:
             break
         # ordering depends on is_reverse
@@ -96,34 +83,6 @@ def concat_expr():
     if res != ():
         return ("CONCAT_EXPR", res)
     return None
-
-
-def lookahead():
-    if peek() == '!':
-        m('!')
-        return ("LOOKAHEAD_NEG", union_expr())
-    elif peek() == '=':
-        m('=')
-        return ("LOOKAHEAD", union_expr())
-    else:
-        raise SyntaxError("invalid lookahead expression")
-
-
-def lookbehind():
-    if peek() == '!':
-        m('!')
-        set_reverse(not is_reverse)
-        r = union_expr()
-        set_reverse(not is_reverse)
-        return ("LOOKBEHIND_NEG", r) if r is not None else None
-    elif peek() == '=':
-        m('=')
-        set_reverse(not is_reverse)
-        r = union_expr()
-        set_reverse(not is_reverse)
-        return ("LOOKBEHIND", r) if r is not None else None
-    else:
-        raise SyntaxError("invalid lookahead expression")
 
 
 def quantified_expr():
@@ -157,10 +116,50 @@ def quantified_expr():
         if r:
             return (r, res)
         raise SyntaxError("invalid range expr")
-
+    elif peek(2) == '(?':
+        m('(')
+        m('?')
+        if peek() == '<':
+            m('<')
+            res = lookbehind(res) if not is_reverse else lookahead(res)
+        else:
+            res = lookahead(res) if not is_reverse else lookbehind(res)
+        m(')')
     if tag and res:
         return (tag, res)
     return res
+
+
+def lookahead(kid):
+    if peek() == '!':
+        m('!')
+        tag = "LOOKAHEAD_NEG"  # if not is_reverse else "LOOKBEHIND_NEG"
+        return (tag, (concat_expr(), kid))
+    elif peek() == '=':
+        m('=')
+        tag = "LOOKAHEAD"  # if not is_reverse else "LOOKBEHIND"
+        return (tag, (concat_expr(), kid))
+    else:
+        raise SyntaxError("invalid lookahead expression")
+
+
+def lookbehind(kid):
+    if peek() == '!':
+        m('!')
+        set_reverse(not is_reverse)
+        r = concat_expr()
+        set_reverse(not is_reverse)
+        tag = "LOOKBEHIND_NEG"  # if not is_reverse else "LOOKAHEAD_NEG"
+        return (tag, (r, kid)) if r is not None else None
+    elif peek() == '=':
+        m('=')
+        set_reverse(not is_reverse)
+        r = concat_expr()
+        set_reverse(not is_reverse)
+        tag = "LOOKBEHIND"  # if not is_reverse else "LOOKAHEAD"
+        return (tag, (r, kid)) if r is not None else None
+    else:
+        raise SyntaxError("invalid lookahead expression")
 
 
 def range_expr():

@@ -205,7 +205,7 @@ class NFA:
         return self | fallthrough
 
     # Run automaton on input[start:end]
-    def process(self, input, start, end, debug=False):
+    def process(self, input, start, end, debug=False, short_circuit=False):
         # resolve empty transitions first in case of empty input
         input_len = len(input)
         self.flags["pos"] = start
@@ -223,6 +223,8 @@ class NFA:
             if not len(self.state):
                 # no active branches left
                 break
+            if short_circuit and self.accepts():
+                return True
         return self.accepts()
 
     def reset(self):
