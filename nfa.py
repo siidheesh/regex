@@ -210,7 +210,8 @@ class NFA:
     def process(self, input, start, end, debug=False, short_circuit=False):
         # resolve empty transitions first in case of empty input
         input_len = len(input)
-        self.flags["pos"] = start
+        # set pos to 1 behind start (for patterns starting with lookbehinds)
+        self.flags["pos"] = start - 1
         self.flags["input"] = input
         self.flags["input_len"] = input_len
         # set flags before calling reset as empty transitions may involve checking guards

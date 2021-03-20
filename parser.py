@@ -46,7 +46,7 @@ def anchored_expr(kid, anchor_type):
         start.add_transition(NFA.START, None, NFA.END)
         # guard: at the start of input or after a newline
         start.add_guard(
-            NFA.START, lambda f: f['pos'] == 0 or f["input"][f['pos'] - 1] == '\n')
+            NFA.START, lambda f: f['pos'] <= 0 or f["input"][f['pos'] - 1] == '\n')
         concat_list = [start] + concat_list
 
     if '$' in anchor_type:

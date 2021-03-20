@@ -54,7 +54,7 @@ class Regex:
                 # confirm the match
                 # TODO: confirming the match is necessary for matches with
                 # consecutive start and end positions, but is it always necessary?
-                if i + 1 == j and not self.fa.process(input, i, j+1):
+                if not self.fa.process(input, i, j+1):
                     continue
                 matches.append((i, j+1))
                 if debug:
