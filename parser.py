@@ -44,16 +44,16 @@ def anchored_expr(kid, anchor_type):
     if '^' in anchor_type:
         start = NFA()
         start.add_transition(NFA.START, None, NFA.END)
-        # invariant: at the start of input or after a newline
-        start.add_invariant(
+        # guard: at the start of input or after a newline
+        start.add_guard(
             NFA.START, lambda f: f['pos'] == 0 or f["input"][f['pos'] - 1] == '\n')
         concat_list = [start] + concat_list
 
     if '$' in anchor_type:
         end = NFA()
         end.add_transition(NFA.START, None, NFA.END)
-        # invariant: at the end of input or before a newline
-        end.add_invariant(
+        # guard: at the end of input or before a newline
+        end.add_guard(
             NFA.START, lambda f: f['pos'] == f["input_len"] - 1 or f["input"][f['pos'] + 1] == '\n')
         concat_list += [end]
 
@@ -92,7 +92,7 @@ def concat_expr(kids):
             la_fa = union_expr(lookahead_tree)
 
             # run the lookbehind fa against the input ahead of the current pos
-            def lookahead_invariant(f):
+            def lookahead_guard(f):
                 pos = f["pos"]
                 input = f["input"]
                 inlen = f["input_len"]
@@ -104,7 +104,7 @@ def concat_expr(kids):
             # if the expr is successfully matched, check if the lookahead is satisfied
             r = NFA()
             r.add_transition(NFA.START, None, NFA.END)
-            r.add_invariant(NFA.START, lookahead_invariant)
+            r.add_guard(NFA.START, lookahead_guard)
 
         elif k == "LOOKBEHIND" or k == "LOOKBEHIND_NEG":
             is_neg = k == "LOOKBEHIND_NEG"
@@ -115,7 +115,7 @@ def concat_expr(kids):
             lb_fa = union_expr(lookbehind_tree)
 
             # run the lookbehind fa against the reverse of the input before the current
-            def lookbehind_invariant(f):
+            def lookbehind_guard(f):
                 pos = f["pos"]
                 input = f["input"][pos::-1]
                 if len(input) < pos + 1:
@@ -126,7 +126,7 @@ def concat_expr(kids):
             # before the expr is tested, check if the lookbehind is satisfied
             r = NFA()
             r.add_transition(NFA.START, None, NFA.END)
-            r.add_invariant(NFA.START, lookbehind_invariant)
+            r.add_guard(NFA.START, lookbehind_guard)
 
         else:
             raise SyntaxError(f"unknown expression found in CONCAT_EXPR: {k}")

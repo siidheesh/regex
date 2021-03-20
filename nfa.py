@@ -18,11 +18,12 @@ class NFA:
         self.state = {NFA.START}
         # flags pertinent to the input being processed
         self.flags = {}
+        # transitions from one state to another on input (None if empty transition)
         self.transitions = {}
         # transitions that are taken when a predicate is satisfied
         self.predicates = {}
-        # list of conditions to be checked before accepting a state
-        self.invariants = {}
+        # conditions to be checked before accepting a state
+        self.guards = {}
 
     # Add a transition from state fr to state to, on input
     # Input can be callable
@@ -41,36 +42,36 @@ class NFA:
             else:
                 self.transitions[idx].add(to)
 
-    # add an invariant to be upheld when in a particular state
-    def add_invariant(self, state, cond):
+    # add a guard to be checked nefore entering the state
+    def add_guard(self, state, cond):
         if not callable(input):
             raise ValueError("cond must be function-like")
-        if state not in self.invariants:
-            self.invariants[state] = {cond}
+        if state not in self.guards:
+            self.guards[state] = (cond,)
         else:
-            self.invariants[state].add(cond)
+            self.guards[state] += (cond,)
 
-    # check if the state upholds the invariants, if any
-    def check_invariant(self, state):
-        if state not in self.invariants:
+    # check guards associated with the state, if any
+    def check_guard(self, state):
+        if state not in self.guards:
             return True
-        for cond in self.invariants[state]:
+        for cond in self.guards[state]:
             if not cond(self.flags):
                 return False
         return True
 
-    # invoke transition if applicable
+    # invoke transition(s) if applicable
     def transition(self, input):
         new_state = set()
         for state in self.state:
             idx = (state, input)
             if idx in self.transitions:
                 for to_state in self.transitions[idx]:
-                    if self.check_invariant(to_state):
+                    if self.check_guard(to_state):
                         new_state.add(to_state)
             if state in self.predicates:
                 for pred, to_state in self.predicates[state]:
-                    if pred(input) and self.check_invariant(to_state):
+                    if pred(input) and self.check_guard(to_state):
                         new_state.add(to_state)
 
         self.state = self.resolve_et(new_state)
@@ -85,7 +86,7 @@ class NFA:
         while queue:
             # keep traversing till we've either seen the state or it doesn't have any empty transitions
             state = queue.pop(0)
-            if state in visited or not self.check_invariant(state):
+            if state in visited or not self.check_guard(state):
                 continue
             visited.add(state)
             idx = (state, None)
@@ -102,6 +103,7 @@ class NFA:
         res = NFA()
         res.transitions = self.transitions.copy()
         res.predicates = self.predicates.copy()
+        res.guards = self.guards.copy()
         return res
 
     # Embed the rhs NFA into the target NFA, marking rhs' states
@@ -119,10 +121,10 @@ class NFA:
             for predicate, to_state in rhs.predicates[from_state]:
                 self.add_transition(
                     mark(from_state), predicate, mark(to_state))
-        # add invariants
-        for state in rhs.invariants:
-            for cond in rhs.invariants[state]:
-                self.add_invariant(mark(state), cond)
+        # add guards
+        for state in rhs.guards:
+            for cond in rhs.guards[state]:
+                self.add_guard(mark(state), cond)
         return self
 
     # union op
@@ -211,7 +213,7 @@ class NFA:
         self.flags["pos"] = start
         self.flags["input"] = input
         self.flags["input_len"] = input_len
-        # set flags before calling reset as empty transitions may involve invariant checking
+        # set flags before calling reset as empty transitions may involve checking guards
         self.reset()
         if debug:
             print("proc: input", input)
@@ -241,13 +243,13 @@ class NFA:
         self.flags["pos"] = 0
         self.flags["input"] = input
         self.flags["input_len"] = input_len
-        self.reset()
+        self.state = self.resolve_et({NFA.START})
         res = []
         for i in range(input_len):
             self.flags["pos"] = i
-            if not len(self.state):
-                # reset NFA if no longer active
-                self.reset()
+            # add starting state back into state
+            # can't cache the resolve_et call as it might depend on self.flags (via guards)
+            self.state.update(self.resolve_et({NFA.START}))
             self.transition(input[i])
             res.append(self.accepts())
         return res
