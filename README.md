@@ -10,7 +10,7 @@ python regex.py
 
 ~~Currently only parses a subset of the POSIX regex spec~~
 
-Supports most of the POSIX BRE spec!
+Supports most of the POSIX BRE spec, including variable=width lookarounds †
 
 What it doesn't support (yet):
 

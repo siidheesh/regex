@@ -1,3 +1,4 @@
+from timeit import default_timer as timer
 import lexer
 import parser
 
@@ -74,5 +75,8 @@ if __name__ == "__main__":
 
     while True:
         test = input("test: ")
+        start = timer()
         matches = reg.scan(test, debug=True)
+        end = timer()
         print(f"{len(matches)} match(es) ✔️" if matches else "NOPE ❌")
+        print("took", end-start, "seconds")
