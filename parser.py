@@ -97,7 +97,7 @@ def concat_expr(kids):
                 input = f["input"]
                 inlen = f["input_len"]
                 if pos + 1 > inlen:
-                    return False
+                    return is_neg
                 res = la_fa.process(input, pos+1, inlen, short_circuit=True)
                 return (is_neg and not res) or (not is_neg and res)
 
@@ -119,7 +119,7 @@ def concat_expr(kids):
                 pos = f["pos"]
                 input = f["input"][pos::-1]
                 if len(input) < pos + 1:
-                    return False
+                    return is_neg
                 res = lb_fa.process(input, 0, pos+1, short_circuit=True)
                 return (is_neg and not res) or (not is_neg and res)
 

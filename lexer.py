@@ -76,7 +76,10 @@ def concat_expr():
         if peek(2) == '(?':
             m('(')
             m('?')
-            if peek() == '<':
+            if peek() == ":":
+                m(':')
+                r = union_expr()
+            elif peek() == '<':
                 m('<')
                 r = lookbehind() if not is_reverse else lookahead()
             else:

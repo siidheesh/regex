@@ -1,6 +1,6 @@
 # Regex
 
-A crap NFA-based regex engine written for fun (beta)
+A crap NFA-based text-directed regex engine written for fun (beta)
 
 To test:
 
@@ -23,4 +23,4 @@ What it doesn't support (yet):
 
 <sub>\* might not be possible with a FA-based engine<sub>
 
-<sub>† negative lookarounds are greedy, i.e they'll reject if the expression is found _anywhere_ ahead of (or behind) the current pos<sub>
+<sub>† negative lookarounds are greedy, i.e they'll reject if the expression is found _anywhere_ ahead of (resp. behind) the current pos<sub>

@@ -54,11 +54,12 @@ class Regex:
                 # confirm the match
                 # TODO: confirming the match is necessary for matches with
                 # consecutive start and end positions, but is it always necessary?
-                if self.fa.process(input, i, j+1):
-                    matches.append((i, j+1))
-                    if debug:
-                        print(input[:i] + ustart +
-                              input[i:j+1] + uend + input[j+1:])
+                if i + 1 == j and not self.fa.process(input, i, j+1):
+                    continue
+                matches.append((i, j+1))
+                if debug:
+                    print(input[:i] + ustart +
+                          input[i:j+1] + uend + input[j+1:])
         return matches
 
 
